@@ -1,0 +1,22 @@
+appId: com.cfagent.manager
+productName: CF Agent Manager
+asar: true
+asarUnpack:
+  - "**/keytar/**"
+  - "**/*.node"
+extraResources:
+  - from: resources/icons/app-icon.png
+    to: app-icon.png
+files:
+  - out/**
+  - package.json
+win:
+  icon: resources/icons/app-icon.ico
+  target:
+    - target: zip
+      arch: [x64]
+  artifactName: CF-Agent-Manager-${version}-windows-x64.zip
+  signExecutable: false
+directories:
+  output: release
+electronVersion: "41.10.6"

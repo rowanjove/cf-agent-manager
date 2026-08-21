@@ -1,0 +1,45 @@
+{
+  "name": "cf-agent-manager",
+  "productName": "CF Agent Manager",
+  "description": "Windows local control plane for Cloudflare resources, projects and deployments.",
+  "author": "Ryan",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rowanjove/cf-agent-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rowanjove/cf-agent-manager/issues"
+  },
+  "homepage": "https://github.com/rowanjove/cf-agent-manager",
+  "type": "module",
+  "main": "out/main/index.js",
+  "engines": {
+    "node": ">=22.14"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke:ui": "npm run build && electron scripts/ui-smoke.mjs",
+    "test:watch": "vitest",
+    "pack:win": "npm run build && electron-builder --win zip --x64"
+  },
+  "dependencies": {
+    "keytar": "7.9.0",
+    "pino": "9.7.0",
+    "yaml": "^2.8.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "electron": "41.10.6",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.11"
+  }
+}
