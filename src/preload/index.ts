@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld("cfAgent", {
   deploy: {
     inspect: (path: string) => invoke("deploy:inspect", { path }),
     build: (path: string) => invoke("deploy:build", { path }),
+    pages: (path: string, projectName: string) => invoke("deploy:pages", { path, projectName }),
   },
   app: {
     version: () => invoke("app:version"),

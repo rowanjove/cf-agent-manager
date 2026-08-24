@@ -27,7 +27,7 @@ Windows 本地 Cloudflare 控制平面桌面应用。它把 Cloudflare 资源发
 
 ## 当前边界
 
-这是一个可运行的第一条垂直切片，不是完整的 Cloudflare 管理后台。当前尚未实现 Cloudflare 写操作、Pages Direct Upload、sidecar Node/Wrangler 打包，以及干净 Windows 机器验收。应用会明确拒绝未满足条件的构建，不会用 mock 假装完成这些能力。
+这是一个可运行的第一条垂直切片，不是完整的 Cloudflare 管理后台。开发环境现已支持经过二次确认的 Pages Direct Upload，并会拒绝覆盖 Git 管理或未纳管的同名项目。其他 Cloudflare 写操作、发布版 sidecar Node/Wrangler 打包，以及干净 Windows 机器验收仍未完成；应用会明确拒绝未满足条件的操作，不会用 mock 假装完成这些能力。
 
 完整产品约束见 [DESIGN-R4.md](DESIGN-R4.md)，落地状态见 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)，链路验证记录见 [CHAIN-VERIFICATION.md](CHAIN-VERIFICATION.md)。
 

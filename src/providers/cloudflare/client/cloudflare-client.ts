@@ -16,6 +16,19 @@ export class CloudflareClient {
   ) {}
 
   async get<T>(path: string, query?: Record<string, string | number | undefined>): Promise<CloudflareEnvelope<T>> {
+    return this.request<T>("GET", path, query);
+  }
+
+  async post<T>(path: string, body: unknown): Promise<CloudflareEnvelope<T>> {
+    return this.request<T>("POST", path, undefined, body);
+  }
+
+  private async request<T>(
+    method: "GET" | "POST",
+    path: string,
+    query?: Record<string, string | number | undefined>,
+    body?: unknown,
+  ): Promise<CloudflareEnvelope<T>> {
     const url = new URL(`${this.baseUrl}${path}`);
     for (const [key, value] of Object.entries(query ?? {})) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -23,7 +36,13 @@ export class CloudflareClient {
     let response: Response;
     try {
       response = await this.fetcher(url, {
-        headers: { Authorization: `Bearer ${this.token}`, Accept: "application/json" },
+        method,
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          Accept: "application/json",
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         signal: AbortSignal.timeout(30_000),
       });
     } catch (error) {
@@ -40,7 +59,7 @@ export class CloudflareClient {
     }
     if (!response.ok || !envelope.success) {
       const message = envelope.errors?.map((item) => item.message).filter(Boolean).join("; ") || `Cloudflare API error (${response.status})`;
-      throw new AppError("CF_API_ERROR", message, response.status >= 500);
+      throw new AppError("CF_API_ERROR", message, response.status >= 500, { status: response.status });
     }
     return envelope;
   }
@@ -59,5 +78,9 @@ export class CloudflareClient {
       if (!response.result_info?.total_pages || page >= response.result_info.total_pages) break;
     }
     return accounts;
+  }
+
+  async verifyPagesAccountAccess(accountId: string): Promise<void> {
+    await this.get<Array<{ name: string }>>(`/accounts/${accountId}/pages/projects`, { page: 1, per_page: 1 });
   }
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 
 import type { ResourceKind } from "./domain";
 import { AppError } from "./errors";
@@ -7,6 +8,7 @@ import type { SyncProgressHandler } from "./sync/sync-engine";
 import { SyncEngine } from "./sync/sync-engine";
 import { inspectLocalProject } from "./deployment/local-analyzer";
 import { BuildEngine } from "./deployment/build-engine";
+import { PagesDeployEngine, type PagesDeployResult } from "./deployment/pages-deploy-engine";
 import type { CredentialStore } from "../credentials/credential-store";
 import { CloudflareClient } from "../providers/cloudflare/client/cloudflare-client";
 import type { ResourceRegistry } from "../providers/cloudflare/registry";
@@ -15,6 +17,7 @@ import type { StateStore } from "../state/state-store";
 export class AgentCore {
   readonly #syncEngine: SyncEngine;
   readonly #buildEngine: BuildEngine;
+  readonly #pagesDeployEngine: PagesDeployEngine;
 
   constructor(
     private readonly state: StateStore,
@@ -22,9 +25,11 @@ export class AgentCore {
     registry: ResourceRegistry,
     private readonly policy = new PolicyEngine(),
     buildEngine = new BuildEngine(),
+    pagesDeployEngine = new PagesDeployEngine(),
   ) {
     this.#syncEngine = new SyncEngine(state, credentials, registry);
     this.#buildEngine = buildEngine;
+    this.#pagesDeployEngine = pagesDeployEngine;
   }
 
   accountsList() { return this.state.listAccounts(); }
@@ -38,11 +43,16 @@ export class AgentCore {
   async accountConnect(input: { token: string; remoteAccountId: string; name: string }) {
     const client = new CloudflareClient(input.token);
     await client.verifyToken();
-    const accounts = await client.listAccounts();
-    const selected = accounts.find((account) => account.id === input.remoteAccountId);
-    if (!selected) throw new AppError("AUTH_FORBIDDEN", "Token does not grant access to the selected account");
+    let selected: { id: string; name: string } | undefined;
+    try {
+      const accounts = await client.listAccounts();
+      selected = accounts.find((account) => account.id === input.remoteAccountId);
+    } catch (error) {
+      if (!(error instanceof AppError) || error.code !== "AUTH_FORBIDDEN") throw error;
+    }
+    if (!selected) await client.verifyPagesAccountAccess(input.remoteAccountId);
     await this.credentials.saveToken(input.remoteAccountId, input.token);
-    return this.state.saveAccount({ remoteAccountId: input.remoteAccountId, name: selected.name || input.name, activate: true });
+    return this.state.saveAccount({ remoteAccountId: input.remoteAccountId, name: selected?.name || input.name, activate: true });
   }
 
   accountSetActive(accountId: string) {
@@ -140,6 +150,86 @@ export class AgentCore {
     });
   }
 
+  async deployPages(input: { path: string; projectName: string }): Promise<PagesDeployResult> {
+    const account = this.state.getActiveAccount();
+    if (!account) throw new AppError("ACCOUNT_NOT_CONFIGURED", "Connect a Cloudflare account first");
+    const token = await this.credentials.getToken(account.remoteAccountId);
+    if (!token) throw new AppError("ACCOUNT_NOT_CONFIGURED", "Cloudflare credential is unavailable");
+
+    const inspected = inspectLocalProject(input.path, {
+      allowedPaths: this.state.getSetting<string[]>("security.allowedPaths", []),
+      deniedPaths: this.state.getSetting<string[]>("security.deniedPaths", []),
+    });
+    if (!inspected.supported) throw new AppError("UNSUPPORTED_FRAMEWORK", inspected.reason);
+    const outputDirectory = path.resolve(inspected.project.path, inspected.project.output_directory);
+    const client = new CloudflareClient(token);
+    const projectPath = `/accounts/${account.remoteAccountId}/pages/projects/${encodeURIComponent(input.projectName)}`;
+    const correlationId = `deploy_${randomUUID()}`;
+
+    try {
+      let project: PagesProject | null = null;
+      try {
+        project = (await client.get<PagesProject>(projectPath)).result;
+      } catch (error) {
+        if (!(error instanceof AppError) || error.details?.status !== 404) throw error;
+      }
+
+      const localResource = this.state.listResources({ accountId: account.id, kind: "pages_project" })
+        .find((resource) => resource.remoteId === input.projectName);
+      if (project && (isGitBackedPages(project.source) || localResource?.ownership !== "managed")) {
+        throw new AppError("PAGES_PROJECT_CONFLICT", "An existing Pages project with this name is not managed by this app");
+      }
+      if (!project) {
+        project = (await client.post<PagesProject>(`/accounts/${account.remoteAccountId}/pages/projects`, {
+          name: input.projectName,
+          production_branch: "main",
+        })).result;
+        const [created] = this.state.upsertResources(account.id, "pages_project", [{
+          remoteId: input.projectName,
+          name: input.projectName,
+          remoteStatus: "deploying",
+          remoteUpdatedAt: new Date().toISOString(),
+          metadata: {
+            subdomain: project.subdomain,
+            production_branch: project.production_branch ?? "main",
+          },
+        }], new Date().toISOString());
+        if (!created) throw new AppError("INTERNAL_ERROR", "Could not cache the new Pages project", false);
+        this.state.adoptResource(created.id);
+      }
+
+      const productionUrl = normalizePagesUrl(project.subdomain, input.projectName);
+      const result = await this.#pagesDeployEngine.deploy({
+        outputDirectory,
+        projectName: input.projectName,
+        accountId: account.remoteAccountId,
+        token,
+        productionUrl,
+      });
+      this.state.addActivity({
+        accountId: account.id,
+        initiator: "gui",
+        action: "pages.deploy",
+        target: input.projectName,
+        result: "succeeded",
+        correlationId,
+        summary: `Deployed ${input.projectName} to Cloudflare Pages`,
+      });
+      return result;
+    } catch (error) {
+      this.state.addActivity({
+        accountId: account.id,
+        initiator: "gui",
+        action: "pages.deploy",
+        target: input.projectName,
+        result: "failed",
+        correlationId,
+        summary: `Cloudflare Pages deployment failed for ${input.projectName}`,
+      });
+      throw error;
+    }
+  }
+
   settingsGet() {
     return { language: this.state.getSetting<"zh-CN" | "en">("language", "zh-CN") };
   }
@@ -148,4 +238,23 @@ export class AgentCore {
     this.state.saveSetting("language", input.language);
     return this.settingsGet();
   }
+}
+
+interface PagesProject {
+  name?: string;
+  subdomain?: string;
+  production_branch?: string;
+  source?: unknown;
+}
+
+export function isGitBackedPages(source: unknown): boolean {
+  if (!source || typeof source !== "object") return false;
+  const value = source as { type?: unknown; config?: { repo_name?: unknown } };
+  return value.type === "github" || value.type === "gitlab"
+    || (typeof value.config?.repo_name === "string" && value.config.repo_name.length > 0);
+}
+
+function normalizePagesUrl(subdomain: string | undefined, projectName: string): string {
+  const value = subdomain?.trim() || `${projectName}.pages.dev`;
+  return /^https:\/\//i.test(value) ? value : `https://${value}`;
 }

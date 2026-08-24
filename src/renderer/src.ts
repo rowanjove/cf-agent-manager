@@ -4,7 +4,9 @@ import brandIconUrl from "./assets/app-icon.png";
 import type { AccountRecord, ActivityRecord, ProjectRecord, ResourceKind, ResourceRecord, SyncResult } from "../core/domain";
 import type { InspectResult } from "../core/deployment/local-analyzer";
 import type { BuildResult } from "../core/deployment/build-engine";
+import type { PagesDeployResult } from "../core/deployment/pages-deploy-engine";
 import { translate, type Language, type TranslationKey } from "./i18n";
+import { pagesDashboardUrl } from "./resource-links";
 
 type View = "overview" | "resources" | "projects" | "deploy" | "activity" | "settings";
 
@@ -22,6 +24,8 @@ let kindFilter: ResourceKind | "all" = "all";
 let selectedLocalPath: string | null = null;
 let inspectResult: InspectResult | null = null;
 let buildResult: BuildResult | null = null;
+let pagesDeployResult: PagesDeployResult | null = null;
+let showProjectForm = false;
 
 const labels: Record<string, string> = {
   pages_project: "Pages", worker: "Workers", d1_database: "D1", kv_namespace: "KV",
@@ -146,11 +150,14 @@ function renderResources(): string {
 function resourceRow(resource: ResourceRecord): string {
   const status = resource.syncState === "fresh" ? resource.remoteStatus ?? t("status.available") : resource.syncState === "remote_missing" ? t("status.remoteMissing") : resource.syncState;
   const ownership = resource.ownership === "managed" ? t("ownership.managed") : t("ownership.external");
-  return `<tr><td><strong>${escapeHtml(resource.name)}</strong><small>${escapeHtml(resource.remoteId)}</small></td><td>${escapeHtml(labels[resource.kind] ?? resource.kind)}</td><td><span class="state ${resource.syncState}">${escapeHtml(status)}</span></td><td><span class="ownership ${resource.ownership}">${ownership}</span></td><td>${escapeHtml(formatDate(resource.remoteUpdatedAt ?? resource.lastSyncedAt))}</td><td>${resource.ownership === "external" ? `<button class="button tiny" data-adopt="${resource.id}">${t("action.adopt")}</button>` : ""}</td></tr>`;
+  const dashboardUrl = resource.kind === "pages_project" && activeAccount() ? pagesDashboardUrl(activeAccount()!.remoteAccountId, resource.name) : null;
+  const name = dashboardUrl ? `<button class="resource-link" data-open-url="${escapeHtml(dashboardUrl)}"><strong>${escapeHtml(resource.name)}</strong></button>` : `<strong>${escapeHtml(resource.name)}</strong>`;
+  return `<tr><td>${name}<small>${escapeHtml(resource.remoteId)}</small></td><td>${escapeHtml(labels[resource.kind] ?? resource.kind)}</td><td><span class="state ${resource.syncState}">${escapeHtml(status)}</span></td><td><span class="ownership ${resource.ownership}">${ownership}</span></td><td>${escapeHtml(formatDate(resource.remoteUpdatedAt ?? resource.lastSyncedAt))}</td><td><div class="row-actions">${dashboardUrl ? `<button class="button tiny" data-open-url="${escapeHtml(dashboardUrl)}">${t("action.editCloudflare")}</button>` : ""}${resource.ownership === "external" ? `<button class="button tiny" data-adopt="${resource.id}">${t("action.adopt")}</button>` : ""}</div></td></tr>`;
 }
 
 function renderProjects(): string {
   return `<div class="section-heading"><div><p class="eyebrow">${t("projects.badge")}</p><h2>${t("projects.heading")}</h2></div><button class="button primary" data-action="new-project">${t("projects.new")}</button></div>
+    ${showProjectForm ? `<form id="project-form" class="panel project-form"><label>${t("projects.formName")}<input name="name" required maxlength="120" autofocus /></label><label>${t("projects.formDescription")}<textarea name="description" maxlength="1000" rows="3"></textarea></label><label>${t("projects.formTags")}<input name="tags" maxlength="400" placeholder="frontend, production" /></label><div class="form-actions"><button class="button primary" type="submit" ${busy ? "disabled" : ""}>${t("projects.create")}</button><button class="button" type="button" data-action="cancel-project">${t("projects.cancel")}</button></div></form>` : ""}
     <div class="project-grid">${projects.length ? projects.map((project) => `<article class="project-card"><div class="project-glyph">◇</div><h3>${escapeHtml(project.name)}</h3><p>${escapeHtml(project.description ?? t("projects.noDescription"))}</p><div><span>${project.tags.length ? project.tags.map((tag) => `#${escapeHtml(tag)}`).join(" ") : t("projects.noTags")}</span><small>${formatDate(project.updatedAt)}</small></div></article>`).join("") : empty(t("projects.empty"), t("projects.emptyHint"))}</div>`;
 }
 
@@ -160,8 +167,11 @@ function renderActivity(): string {
 
 function renderDeploy(): string {
   const actionLabel = selectedLocalPath ? t("deploy.change") : t("deploy.choose");
+  const deployGate = pagesDeployResult
+    ? `<div class="build-ready"><span>✓</span><div><strong>${t("deploy.live")}</strong><button class="text-button" data-open-url="${escapeHtml(pagesDeployResult.production_url)}">${escapeHtml(pagesDeployResult.production_url)}</button></div></div>`
+    : `<form id="pages-deploy-form" class="next-gate"><div><strong>${t("deploy.pagesTitle")}</strong><p>${t("deploy.pagesHint")}</p><label>${t("deploy.projectName")}<input name="projectName" required maxlength="58" pattern="[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?" placeholder="my-pages-project" /></label></div><button class="button primary" type="submit" ${busy || !activeAccount() ? "disabled" : ""}>${busy ? t("deploy.deploying") : t("deploy.deployAction")}</button></form>`;
   const result = inspectResult?.supported
-    ? `<article class="panel inspect-result"><div class="inspect-status supported"><span>✓</span><div><strong>${t("deploy.supported")}</strong><small>${escapeHtml(inspectResult.project.path)}</small></div></div><dl><dt>${t("deploy.framework")}</dt><dd>${escapeHtml(inspectResult.project.framework)}</dd><dt>${t("deploy.packageManager")}</dt><dd>${escapeHtml(inspectResult.project.package_manager ?? t("deploy.none"))}</dd><dt>${t("deploy.installCommand")}</dt><dd><code>${escapeHtml(inspectResult.project.install_command ?? t("deploy.none"))}</code></dd><dt>${t("deploy.buildCommand")}</dt><dd><code>${escapeHtml(inspectResult.project.build_command ?? t("deploy.none"))}</code></dd><dt>${t("deploy.output")}</dt><dd><code>${escapeHtml(inspectResult.project.output_directory)}</code></dd></dl>${buildResult ? `<div class="build-ready"><span>✓</span><div><strong>${t("deploy.buildReady")}</strong><code>${escapeHtml(buildResult.output_directory)}</code></div></div>` : `<div class="next-gate"><div><strong>${t("deploy.buildTitle")}</strong><p>${t("deploy.buildHint")}</p></div><button class="button primary" data-action="build-project" ${busy ? "disabled" : ""}>${busy ? t("deploy.building") : t("deploy.buildAction")}</button></div>`}</article>`
+    ? `<article class="panel inspect-result"><div class="inspect-status supported"><span>✓</span><div><strong>${t("deploy.supported")}</strong><small>${escapeHtml(inspectResult.project.path)}</small></div></div><dl><dt>${t("deploy.framework")}</dt><dd>${escapeHtml(inspectResult.project.framework)}</dd><dt>${t("deploy.packageManager")}</dt><dd>${escapeHtml(inspectResult.project.package_manager ?? t("deploy.none"))}</dd><dt>${t("deploy.installCommand")}</dt><dd><code>${escapeHtml(inspectResult.project.install_command ?? t("deploy.none"))}</code></dd><dt>${t("deploy.buildCommand")}</dt><dd><code>${escapeHtml(inspectResult.project.build_command ?? t("deploy.none"))}</code></dd><dt>${t("deploy.output")}</dt><dd><code>${escapeHtml(inspectResult.project.output_directory)}</code></dd></dl>${buildResult ? `<div class="build-ready"><span>✓</span><div><strong>${t("deploy.buildReady")}</strong><code>${escapeHtml(buildResult.output_directory)}</code></div></div>${deployGate}` : `<div class="next-gate"><div><strong>${t("deploy.buildTitle")}</strong><p>${t("deploy.buildHint")}</p></div><button class="button primary" data-action="build-project" ${busy ? "disabled" : ""}>${busy ? t("deploy.building") : t("deploy.buildAction")}</button></div>`}</article>`
     : inspectResult ? `<article class="panel inspect-result"><div class="inspect-status unsupported"><span>!</span><div><strong>${t("deploy.unsupported")}</strong><small>${escapeHtml(inspectResult.reason)}</small></div></div></article>` : empty(t("deploy.noSelection"), t("deploy.noSelectionHint"));
   return `<div class="section-heading"><div><p class="eyebrow">${t("deploy.badge")}</p><h2>${t("deploy.heading")}</h2><p class="muted">${t("deploy.description")}</p></div><button class="button primary" data-action="choose-deploy-folder">${actionLabel}</button></div>${selectedLocalPath ? `<div class="selected-path"><span>${t("deploy.path")}</span><code>${escapeHtml(selectedLocalPath)}</code></div>` : ""}${result}`;
 }
@@ -181,7 +191,7 @@ function activitySummary(item: ActivityRecord): string {
 function renderSettings(): string {
   return `<div class="settings-grid">
     <article class="panel"><p class="eyebrow">${t("settings.account")}</p><h3>${activeAccount() ? escapeHtml(activeAccount()!.name ?? activeAccount()!.remoteAccountId) : t("settings.connect")}</h3><p class="muted">${t("settings.tokenHint")}</p>
-      ${activeAccount() ? `<dl><dt>${t("settings.accountId")}</dt><dd>${escapeHtml(activeAccount()!.remoteAccountId)}</dd><dt>${t("settings.credential")}</dt><dd>${t("settings.credentialStored")}</dd></dl>` : `<form id="connect-form"><label>${t("settings.token")}<input name="token" type="password" autocomplete="off" minlength="20" required placeholder="${t("settings.tokenPlaceholder")}" /></label><button class="button primary" type="submit">${t("settings.discover")}</button></form><div id="account-picker"></div>`}
+      ${activeAccount() ? `<dl><dt>${t("settings.accountId")}</dt><dd>${escapeHtml(activeAccount()!.remoteAccountId)}</dd><dt>${t("settings.credential")}</dt><dd>${t("settings.credentialStored")}</dd></dl>` : `<form id="connect-form"><label>${t("settings.token")}<input name="token" type="password" autocomplete="off" minlength="20" required placeholder="${t("settings.tokenPlaceholder")}" /></label><label>${t("settings.accountId")}<input name="accountId" autocomplete="off" maxlength="32" pattern="[a-fA-F0-9]{32}" placeholder="${t("settings.accountIdPlaceholder")}" /></label><div class="form-actions"><button class="button primary" type="submit">${t("settings.discover")}</button><button class="button" type="button" data-action="connect-account-id">${t("settings.connectById")}</button></div></form><div id="account-picker"></div>`}
     </article>
     <article class="panel"><p class="eyebrow">${t("settings.language")}</p><h3>${language === "zh-CN" ? t("language.zh") : t("language.en")}</h3><p class="muted">${t("settings.languageHint")}</p><label class="language-picker"><select id="language-select"><option value="zh-CN" ${language === "zh-CN" ? "selected" : ""}>${t("language.zh")}</option><option value="en" ${language === "en" ? "selected" : ""}>${t("language.en")}</option></select></label></article>
     <article class="panel safety-panel"><p class="eyebrow">${t("settings.safety")}</p><h3>${t("settings.safetyHeading")}</h3><ul class="safety-list"><li><span>${t("settings.read")}</span><strong>${t("settings.allowed")}</strong></li><li><span>${t("settings.externalEdit")}</span><strong>${t("settings.confirm")}</strong></li><li><span>${t("settings.dnsSecrets")}</span><strong>${t("settings.confirm")}</strong></li><li><span>${t("settings.destructive")}</span><strong>${t("settings.confirmDeny")}</strong></li></ul></article>
@@ -194,11 +204,16 @@ function bindEvents(): void {
   document.querySelectorAll<HTMLElement>("[data-view]").forEach((button) => button.addEventListener("click", () => { view = button.dataset.view as View; render(); }));
   document.querySelectorAll<HTMLElement>("[data-kind]").forEach((button) => button.addEventListener("click", () => { kindFilter = button.dataset.kind as ResourceKind | "all"; view = "resources"; render(); }));
   document.querySelector<HTMLElement>("[data-action='sync']")?.addEventListener("click", () => void runSync());
-  document.querySelector<HTMLElement>("[data-action='new-project']")?.addEventListener("click", () => void newProject());
+  document.querySelector<HTMLElement>("[data-action='new-project']")?.addEventListener("click", () => { showProjectForm = true; render(); document.querySelector<HTMLInputElement>("#project-form input[name='name']")?.focus(); });
+  document.querySelector<HTMLElement>("[data-action='cancel-project']")?.addEventListener("click", () => { showProjectForm = false; render(); });
+  document.querySelector<HTMLFormElement>("#project-form")?.addEventListener("submit", (event) => { event.preventDefault(); void createProject(event.currentTarget as HTMLFormElement); });
   document.querySelector<HTMLElement>("[data-action='choose-deploy-folder']")?.addEventListener("click", () => void chooseDeployFolder());
   document.querySelector<HTMLElement>("[data-action='build-project']")?.addEventListener("click", () => void buildProject());
+  document.querySelector<HTMLFormElement>("#pages-deploy-form")?.addEventListener("submit", (event) => { event.preventDefault(); void deployPages(event.currentTarget as HTMLFormElement); });
+  document.querySelectorAll<HTMLElement>("[data-open-url]").forEach((button) => button.addEventListener("click", () => void window.cfAgent.app.openExternal(button.dataset.openUrl!)));
   document.querySelectorAll<HTMLElement>("[data-adopt]").forEach((button) => button.addEventListener("click", () => void adopt(button.dataset.adopt!)));
   document.querySelector<HTMLFormElement>("#connect-form")?.addEventListener("submit", (event) => { event.preventDefault(); void discoverAccounts(event.currentTarget as HTMLFormElement); });
+  document.querySelector<HTMLElement>("[data-action='connect-account-id']")?.addEventListener("click", () => void connectAccountById());
   document.querySelector<HTMLSelectElement>("#language-select")?.addEventListener("change", (event) => void changeLanguage((event.currentTarget as HTMLSelectElement).value as Language));
 }
 
@@ -216,11 +231,28 @@ async function chooseDeployFolder(): Promise<void> {
   selectedLocalPath = selected;
   inspectResult = null;
   buildResult = null;
+  pagesDeployResult = null;
   busy = true;
   notice = null;
   render();
   try { inspectResult = await window.cfAgent.deploy.inspect(selected); }
   catch (error) { notice = { kind: "error", text: messageOf(error) }; }
+  finally { busy = false; render(); }
+}
+
+async function deployPages(form: HTMLFormElement): Promise<void> {
+  if (!selectedLocalPath || !buildResult) return;
+  const value = new FormData(form).get("projectName");
+  if (typeof value !== "string" || !value.trim()) return;
+  busy = true; notice = null; render();
+  try {
+    const result = await window.cfAgent.deploy.pages(selectedLocalPath, value.trim());
+    if (result) {
+      pagesDeployResult = result;
+      await loadCache();
+      notice = { kind: "success", text: t("deploy.deploySuccess") };
+    }
+  } catch (error) { notice = { kind: "error", text: messageOf(error) }; }
   finally { busy = false; render(); }
 }
 
@@ -271,6 +303,16 @@ async function connectAccount(token: string, remoteAccountId: string, name: stri
   finally { busy = false; }
 }
 
+async function connectAccountById(): Promise<void> {
+  const form = document.querySelector<HTMLFormElement>("#connect-form");
+  if (!form) return;
+  const data = new FormData(form);
+  const token = data.get("token");
+  const accountId = data.get("accountId");
+  if (typeof token !== "string" || typeof accountId !== "string" || !/^[a-f0-9]{32}$/i.test(accountId.trim())) return;
+  await connectAccount(token, accountId.trim(), accountId.trim());
+}
+
 async function adopt(resourceId: string): Promise<void> {
   if (!window.confirm(t("dialog.adopt"))) return;
   try {
@@ -280,12 +322,20 @@ async function adopt(resourceId: string): Promise<void> {
   } catch (error) { notice = { kind: "error", text: messageOf(error) }; render(); }
 }
 
-async function newProject(): Promise<void> {
-  const name = window.prompt(t("dialog.projectName"));
-  if (!name?.trim()) return;
-  const description = window.prompt(t("dialog.projectDescription")) || null;
-  try { await window.cfAgent.projects.create({ name: name.trim(), description }); await loadCache(); render(); }
-  catch (error) { notice = { kind: "error", text: messageOf(error) }; render(); }
+async function createProject(form: HTMLFormElement): Promise<void> {
+  const data = new FormData(form);
+  const name = String(data.get("name") ?? "").trim();
+  if (!name) return;
+  const description = String(data.get("description") ?? "").trim() || null;
+  const tags = String(data.get("tags") ?? "").split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 20);
+  busy = true; notice = null; render();
+  try {
+    await window.cfAgent.projects.create({ name, description, tags });
+    await loadCache();
+    showProjectForm = false;
+    notice = { kind: "success", text: t("projects.created") };
+  } catch (error) { notice = { kind: "error", text: messageOf(error) }; }
+  finally { busy = false; render(); }
 }
 
 function messageOf(error: unknown): string { return error instanceof Error ? error.message : t("error.unexpected"); }

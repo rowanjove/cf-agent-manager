@@ -102,6 +102,22 @@ function registerIpc(): void {
     if (result.response !== 1) return null;
     return core.buildLocal(parsed);
   });
+  handle("deploy:pages", async (input) => {
+    const parsed = parseIpc("deploy:pages", input);
+    const english = core.settingsGet().language === "en";
+    const result = await dialog.showMessageBox(mainWindow!, {
+      type: "warning",
+      buttons: english ? ["Cancel", "Deploy to Cloudflare Pages"] : ["取消", "部署到 Cloudflare Pages"],
+      defaultId: 0,
+      cancelId: 0,
+      title: english ? "Confirm Cloudflare write" : "确认写入 Cloudflare",
+      message: english ? "This will create or update a live Pages deployment" : "这将创建或更新线上 Pages 部署",
+      detail: `${parsed.projectName}\n\n${parsed.path}`,
+      noLink: true,
+    });
+    if (result.response !== 1) return null;
+    return core.deployPages(parsed);
+  });
   handle("app:version", () => app.getVersion());
   handle("app:openExternal", async (input) => {
     const url = typeof input === "object" && input !== null && "url" in input ? String(input.url) : "";

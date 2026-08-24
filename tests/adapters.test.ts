@@ -16,6 +16,23 @@ describe("Cloudflare read adapters", () => {
     expect(normalized.metadata).not.toHaveProperty("secret");
   });
 
+  it("uses the Pages API maximum page size", async () => {
+    const calls: Array<Record<string, string | number | undefined>> = [];
+    const ctx = {
+      accountId: "account",
+      client: {
+        get: async (_path: string, query: Record<string, string | number | undefined>) => {
+          calls.push(query);
+          return { success: true, result: [], result_info: { page: 1, total_pages: 1 } };
+        },
+      },
+    };
+
+    await new PagesAdapter().list(ctx as never);
+
+    expect(calls[0]?.per_page).toBe(10);
+  });
+
   it("normalizes an R2 bucket using its name as remote identity", () => {
     expect(new R2Adapter().normalizeSummary({ name: "assets", location: "apac" })).toMatchObject({
       remoteId: "assets", name: "assets", metadata: { location: "apac" },

@@ -1,5 +1,6 @@
 import type { AccountRecord, ActivityRecord, ProjectRecord, ResourceRecord, SyncResult } from "../core/domain";
 import type { BuildResult } from "../core/deployment/build-engine";
+import type { PagesDeployResult } from "../core/deployment/pages-deploy-engine";
 import type { InspectResult } from "../core/deployment/local-analyzer";
 
 interface CfAgentApi {
@@ -29,7 +30,11 @@ interface CfAgentApi {
     get(): Promise<{ language: "zh-CN" | "en" }>;
     save(input: { language: "zh-CN" | "en" }): Promise<{ language: "zh-CN" | "en" }>;
   };
-  deploy: { inspect(path: string): Promise<InspectResult>; build(path: string): Promise<BuildResult | null> };
+  deploy: {
+    inspect(path: string): Promise<InspectResult>;
+    build(path: string): Promise<BuildResult | null>;
+    pages(path: string, projectName: string): Promise<PagesDeployResult | null>;
+  };
   app: { version(): Promise<string>; openExternal(url: string): Promise<boolean>; pickDirectory(): Promise<string | null> };
 }
 

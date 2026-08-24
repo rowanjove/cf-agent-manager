@@ -6,8 +6,9 @@ type CfItem = Record<string, unknown>;
 
 async function pagedList(ctx: AdapterContext, path: string, query: Record<string, string | number> = {}): Promise<CfItem[]> {
   const all: CfItem[] = [];
+  const perPage = query.per_page ?? 50;
   for (let page = 1; ; page += 1) {
-    const response = await ctx.client.get<CfItem[]>(path, { ...query, page, per_page: 50 });
+    const response = await ctx.client.get<CfItem[]>(path, { ...query, page, per_page: perPage });
     all.push(...response.result);
     if (!response.result_info?.total_pages || page >= response.result_info.total_pages) break;
   }
@@ -16,7 +17,10 @@ async function pagedList(ctx: AdapterContext, path: string, query: Record<string
 
 abstract class AccountArrayAdapter extends ReadAdapter<CfItem> {
   abstract readonly path: string;
-  async list(ctx: AdapterContext): Promise<CfItem[]> { return pagedList(ctx, this.path.replace(":account", ctx.accountId)); }
+  readonly perPage: number = 50;
+  async list(ctx: AdapterContext): Promise<CfItem[]> {
+    return pagedList(ctx, this.path.replace(":account", ctx.accountId), { per_page: this.perPage });
+  }
   async get(ctx: AdapterContext, remoteId: string): Promise<CfItem> {
     const items = await this.list(ctx);
     const item = items.find((candidate) => String(candidate.id ?? candidate.uuid ?? candidate.name) === remoteId);
@@ -28,6 +32,7 @@ abstract class AccountArrayAdapter extends ReadAdapter<CfItem> {
 export class PagesAdapter extends AccountArrayAdapter {
   readonly kind = "pages_project" as const;
   readonly path = "/accounts/:account/pages/projects";
+  override readonly perPage = 10;
   normalizeSummary(item: CfItem): NormalizedResource {
     const name = String(item.name ?? item.id);
     return {

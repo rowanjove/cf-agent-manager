@@ -25,4 +25,11 @@ describe("IPC schemas", () => {
     expect(parseIpc("deploy:build", { path: "F:\\AI\\site" })).toEqual({ path: "F:\\AI\\site" });
     expect(() => parseIpc("deploy:build", { path: "F:\\AI\\site", command: "danger" })).toThrow();
   });
+
+  it("restricts Pages deployment names and payload fields", () => {
+    expect(parseIpc("deploy:pages", { path: "F:\\AI\\site", projectName: "my-site" }))
+      .toEqual({ path: "F:\\AI\\site", projectName: "my-site" });
+    expect(() => parseIpc("deploy:pages", { path: "F:\\AI\\site", projectName: "My Site" })).toThrow();
+    expect(() => parseIpc("deploy:pages", { path: "F:\\AI\\site", projectName: "my-site", force: true })).toThrow();
+  });
 });

@@ -28,6 +28,10 @@ export const ipcSchemas = {
   "settings:save": z.object({ language: z.enum(["zh-CN", "en"]) }).strict(),
   "deploy:inspect": z.object({ path: z.string().trim().min(1).max(32767) }).strict(),
   "deploy:build": z.object({ path: z.string().trim().min(1).max(32767) }).strict(),
+  "deploy:pages": z.object({
+    path: z.string().trim().min(1).max(32767),
+    projectName: z.string().trim().regex(/^[a-z0-9](?:[a-z0-9-]{0,56}[a-z0-9])?$/),
+  }).strict(),
 };
 
 export function parseIpc<T extends keyof typeof ipcSchemas>(channel: T, input: unknown): z.infer<(typeof ipcSchemas)[T]> {

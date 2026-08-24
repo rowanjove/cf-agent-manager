@@ -3,7 +3,7 @@
   "productName": "CF Agent Manager",
   "description": "Windows local control plane for Cloudflare resources, projects and deployments.",
   "author": "Ryan",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,6 +30,7 @@
   "dependencies": {
     "keytar": "7.9.0",
     "pino": "9.7.0",
+    "wrangler": "^4.125.0",
     "yaml": "^2.8.3",
     "zod": "4.4.3"
   },
