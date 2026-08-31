@@ -1,72 +1,80 @@
 # CF Agent Manager
 
-Windows 本地 Cloudflare 控制平面桌面应用。它把 Cloudflare 资源发现、缓存优先的 Dashboard、本地项目关系和受策略保护的部署校验放在一个中文优先的 Electron 界面中。
+[简体中文](README.md) | [English](README.en.md)
 
-> 当前版本：`0.1.0`（早期公开预览）
+CF Agent Manager 是面向 Windows 的 Cloudflare 资源管理桌面应用。它在一个 Electron 界面中提供账户资源发现、本地缓存总览、项目与资源关联，以及带确认步骤的部署校验。
 
-## 界面预览
+[下载 Windows 版](https://github.com/rowanjove/cf-agent-manager/releases) · [报告问题](https://github.com/rowanjove/cf-agent-manager/issues)
 
-![总览 Dashboard](docs/images/overview.png)
+当前版本为 **0.1.1，早期公开预览**。界面默认中文，可切换 English。资源管理和部署能力仍有边界，请先阅读下方说明。
 
-![资源管理](docs/images/resources.png)
+![CF Agent Manager 账户资源总览](docs/images/overview.png)
 
-![部署向导](docs/images/deploy.png)
+## 功能与边界
 
-## 下载
+| 功能 | 当前范围 |
+| --- | --- |
+| 资源发现 | Pages、Workers、D1、KV、R2、Zones 和 DNS |
+| 缓存总览 | 本地 SQLite 保存资源缓存；单个服务同步失败不清除其他服务已成功缓存的数据 |
+| 项目管理 | 创建本地项目、确认资源纳管、记录活动 |
+| 部署准备 | 选择目录、分析项目、本地构建校验及执行前确认 |
+| Pages Direct Upload | 开发环境支持二次确认；拒绝覆盖 Git 管理或未纳管的同名项目 |
+| 发布包构建／部署 | sidecar Node/Wrangler 打包和干净 Windows 机器验收尚未完成 |
+| 其他云端写操作 | 不应视为已交付的完整 Cloudflare 管理能力 |
 
-从 [Releases](https://github.com/rowanjove/cf-agent-manager/releases) 下载最新的 Windows x64 ZIP，解压后运行 `CF Agent Manager.exe`。当前发布包未签名，Windows 可能显示 SmartScreen 提示；请只从本仓库的 Release 页面下载。
+公开 ZIP 不等于完整部署工具链。未满足条件的操作会被拒绝；不能将开发环境的 Direct Upload 支持理解为发布包已通过端到端部署验收。
 
-## 已实现能力
+![CF Agent Manager 资源管理界面](docs/images/resources.png)
+![CF Agent Manager 部署准备界面](docs/images/deploy.png)
 
-- 中文默认界面，可即时切换 English，语言偏好保存在本地 SQLite。
-- 发现并缓存 Pages、Workers、D1、KV、R2、Zones、DNS 资源。
-- 本地 Project 创建、Resource adopt 确认令牌和 Activity 审计基础。
-- 部署向导的目录选择、项目分析、本地构建校验和执行前确认。
-- API Token 只写入 Windows Credential Manager，不进入 SQLite、日志或构建子进程环境。
-- 单个 Cloudflare 服务同步失败时保留其他已成功缓存的数据。
+## 安装与首次使用
 
-## 当前边界
+1. 从 [Releases](https://github.com/rowanjove/cf-agent-manager/releases) 下载 `CF-Agent-Manager-0.1.1-windows-x64.zip`。
+2. 完整解压 ZIP，运行 `CF Agent Manager.exe`。
+3. 在“设置”中配置 Cloudflare API Token，连接账户并同步资源。
+4. 在总览和资源页查看缓存结果；执行纳管或部署相关操作前核对目标与确认提示。
 
-这是一个可运行的第一条垂直切片，不是完整的 Cloudflare 管理后台。开发环境现已支持经过二次确认的 Pages Direct Upload，并会拒绝覆盖 Git 管理或未纳管的同名项目。其他 Cloudflare 写操作、发布版 sidecar Node/Wrangler 打包，以及干净 Windows 机器验收仍未完成；应用会明确拒绝未满足条件的操作，不会用 mock 假装完成这些能力。
+当前发布包未签名，Windows 可能显示 SmartScreen 提示。请只使用本仓库 Release 中的安装资产。
 
-完整产品约束见 [DESIGN-R4.md](DESIGN-R4.md)，落地状态见 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md)，链路验证记录见 [CHAIN-VERIFICATION.md](CHAIN-VERIFICATION.md)。
+## 凭据与权限
 
-## 安全说明
+API Token 存储在 Windows Credential Manager，不写入 SQLite、活动日志、项目 YAML 或构建子进程环境。界面语言偏好与资源缓存保存在本地 SQLite。
 
-首次启动后，可在“设置”中输入 Cloudflare API Token。Token 仅用于发现账户并保存到 Windows Credential Manager；应用不会把 Token 写入 SQLite、Activity Log、项目 YAML 或日志。请使用权限范围尽可能小的 Cloudflare API Token，并不要把真实 Token 提交到仓库或 Issue。
+使用满足操作需求的最小权限 Token。不要在 Issue、截图、日志、测试数据或提交中包含真实凭据。查看资源和执行云端写操作需要的权限不同，界面中出现某个资源并不代表允许修改它。
 
 ## 本地开发
 
-要求 Node.js `>=22.14`，建议使用 Windows 环境：
+需要 Windows 和 Node.js **>=22.14**。
 
 ```powershell
-npm install
+git clone https://github.com/rowanjove/cf-agent-manager.git
+cd cf-agent-manager
+npm ci
 npm test
 npm run typecheck
 npm run dev
 ```
 
-常用验证命令：
+| 命令 | 用途 |
+| --- | --- |
+| `npm run build` | 构建 Electron 主进程、preload 和 renderer |
+| `npm run smoke:ui` | 构建并运行无凭据 UI 冒烟测试 |
+| `npm run pack:win` | 生成 Windows x64 ZIP |
 
-```powershell
-npm run build       # 构建 Electron 主进程、preload 和 renderer
-npm run smoke:ui    # 构建并运行无凭据 UI smoke test
-npm run pack:win    # 生成 release/CF-Agent-Manager-<version>-windows-x64.zip
-```
+测试替身和无凭据 UI 测试不能替代真实账户权限或干净机器上的发布验收。
 
-## 项目结构
+## 代码与项目文档
 
-- `src/main`：Electron 主进程、安全策略和 IPC
-- `src/preload`：受限的 renderer bridge
-- `src/renderer`：中文优先的界面与本地化
-- `src/core`：领域模型、同步、策略和部署分析
-- `src/providers/cloudflare`：Cloudflare API client 与资源适配器
-- `tests`：Vitest 单元/集成测试
+- `src/main/`、`src/preload/`：主进程、安全策略和受限 IPC。
+- `src/renderer/`：界面与本地化。
+- `src/core/`：领域模型、同步、策略和部署分析。
+- `src/providers/cloudflare/`：API 客户端与资源适配器。
+- `tests/`：Vitest 单元与集成测试。
 
-## 参与贡献
+[产品约束](DESIGN-R4.md) · [实施计划](IMPLEMENTATION-PLAN.md) · [历史链路验证记录](CHAIN-VERIFICATION.md)
 
-欢迎提交 Issue 和 Pull Request。涉及 Cloudflare 写操作、凭据、DNS、密钥或破坏性动作的改动，请先说明权限边界、确认流程和测试覆盖；不要在 Issue、日志或测试 fixture 中放入真实凭据。
+验证记录有独立日期，不能代替当前版本状态。涉及凭据、Cloudflare 写操作、DNS 或破坏性动作的贡献，应说明权限边界、确认流程及测试覆盖。
 
-## 许可证
+## 许可
 
-本项目以 [MIT License](LICENSE) 开源。Electron、Cloudflare API 及其他依赖仍受其各自许可证约束。
+自有代码采用 [MIT License](LICENSE)。Electron 及其他依赖仍受各自许可证约束。
