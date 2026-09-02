@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from "electron";
 import pino from "pino";
 
+import { APP_NAME, LEGACY_USER_DATA_DIRECTORY } from "../branding";
 import { AgentCore } from "../core/agent-core";
 import { toPublicError } from "../core/errors";
 import { WindowsCredentialStore } from "../credentials/credential-store";
@@ -24,7 +25,7 @@ function createWindow(): void {
     minWidth: 1040,
     minHeight: 680,
     backgroundColor: "#08111d",
-    title: "CF Agent Manager",
+    title: APP_NAME,
     icon: app.isPackaged ? join(process.resourcesPath, "app-icon.png") : join(process.cwd(), "resources", "icons", "app-icon.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
@@ -135,6 +136,7 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 else {
   app.on("second-instance", () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } });
+  app.setPath("userData", join(app.getPath("appData"), LEGACY_USER_DATA_DIRECTORY));
   void app.whenReady().then(() => {
     if (app.isPackaged) process.env.CF_AGENT_PACKAGED_RUNTIME_REQUIRED = "1";
     Menu.setApplicationMenu(null);

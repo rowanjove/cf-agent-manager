@@ -7,6 +7,8 @@ import { app, BrowserWindow, ipcMain, Menu, session } from "electron";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.join(root, "docs", "images");
 
+app.disableHardwareAcceleration();
+
 function reply(channel, data) {
   ipcMain.handle(channel, () => ({ ok: true, data }));
 }
@@ -28,12 +30,12 @@ app.whenReady().then(async () => {
   reply("projects:list", []);
   reply("activity:list", []);
   reply("accounts:syncStatus", null);
-  reply("app:version", "0.1.0");
+  reply("app:version", "0.2.0");
 
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
-    show: true,
+    show: false,
     backgroundColor: "#f5f6f8",
     webPreferences: {
       preload: path.join(root, "out", "preload", "index.cjs"),
@@ -54,7 +56,11 @@ app.whenReady().then(async () => {
   ];
   for (const [name, view] of captures) {
     if (view) {
-      await window.webContents.executeJavaScript(`document.querySelector('[data-view="${view}"]')?.click()`);
+      await window.webContents.executeJavaScript(`(() => {
+        document.querySelector('[data-view="${view}"]')?.click();
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+      })()`);
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
     const image = await window.webContents.capturePage();

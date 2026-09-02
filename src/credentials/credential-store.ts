@@ -1,6 +1,8 @@
 import keytar from "keytar";
 
-const SERVICE = "CFAgentManager/cloudflare";
+import { LEGACY_CREDENTIAL_SERVICE } from "../branding";
+
+const SERVICE = LEGACY_CREDENTIAL_SERVICE;
 
 export interface CredentialStore {
   getToken(remoteAccountId: string): Promise<string | null>;

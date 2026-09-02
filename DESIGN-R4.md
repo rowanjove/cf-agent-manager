@@ -1,9 +1,9 @@
-# CF Agent Manager 工程设计文档（Control Plane R4）
+# CF Nexarch 工程设计文档（Control Plane R4）
 
 | 字段 | 值 |
 | --- | --- |
-| 文档标题 | CF Agent Manager Engineering Design |
-| 作者 | Ryan / CF Agent Manager |
+| 文档标题 | CF Nexarch Engineering Design |
+| 作者 | Ryan / CF Nexarch |
 | 日期 | 2026-08-22 |
 | 状态 | Draft — Control Plane R4 |
 | 读者 | 从零实现该工具的工程师；后续 CLI / Agent / MCP 的契约维护者 |
@@ -37,7 +37,7 @@
 
 # 1. Overview
 
-CF Agent Manager 是运行在用户 Windows 电脑上的 **Cloudflare 本地控制台**。用户解压 zip、双击 exe 后，可以看到当前 Cloudflare 账户中的资源，查看状态、编辑支持的配置、将本地项目部署到 Cloudflare，并把多个 Cloudflare 服务组织到一个逻辑 Project 中。
+CF Nexarch 是运行在用户 Windows 电脑上的 **Cloudflare 本地控制台**。用户解压 zip、双击 exe 后，可以看到当前 Cloudflare 账户中的资源，查看状态、编辑支持的配置、将本地项目部署到 Cloudflare，并把多个 Cloudflare 服务组织到一个逻辑 Project 中。
 
 它不再只回答“怎样把一个 Vite 项目传到 Pages”，而要回答四类问题：
 
@@ -329,7 +329,7 @@ inspect → install/build → create/read Pages → upload → bind domain(optio
 
 在 Cloudflare Dashboard 手工修改或删除一个资源。
 
-CF Agent Manager 下一轮 sync 后必须反映：
+CF Nexarch 下一轮 sync 后必须反映：
 
 - updated / remote_missing；
 - 不静默重建；
@@ -1432,8 +1432,8 @@ initiator × ownership × action × risk × configured policy → decision
 
 ```json
 {
-  "name": "cf-agent-manager",
-  "productName": "CF Agent Manager",
+  "name": "cf-nexarch",
+  "productName": "CF Nexarch",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -1491,7 +1491,7 @@ export default defineConfig({
 
 ```yaml
 appId: com.cfagent.manager
-productName: CF Agent Manager
+productName: CF Nexarch
 asar: true
 asarUnpack:
   - "**/{better-sqlite3,keytar}/**"
@@ -1516,7 +1516,7 @@ win:
   target:
     - target: zip
       arch: [x64]
-  artifactName: CF-Agent-Manager-${version}-windows-x64.zip
+  artifactName: CF-Nexarch-${version}-windows-x64.zip
   signAndEditExecutable: false   # V1 不签名；五步验收含 SmartScreen「仍要运行」
 directories:
   output: release

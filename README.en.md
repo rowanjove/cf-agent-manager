@@ -1,14 +1,14 @@
-# CF Agent Manager
+# CF Nexarch
 
 [简体中文](README.md) | [English](README.en.md)
 
-CF Agent Manager is a Windows desktop application for managing Cloudflare resources. Its Electron interface combines account resource discovery, cached dashboards, local project-to-resource relationships, and deployment validation with explicit confirmation steps.
+CF Nexarch is a local Cloudflare control plane for Windows. Its Electron interface combines account resource discovery, a cached dashboard, local project organization, and Pages deployment flows with explicit confirmation steps.
 
-[Download for Windows](https://github.com/rowanjove/cf-agent-manager/releases) · [Report an issue](https://github.com/rowanjove/cf-agent-manager/issues)
+[Download for Windows](https://github.com/rowanjove/cf-nexarch/releases) · [Report an issue](https://github.com/rowanjove/cf-nexarch/issues)
 
-The current version is **0.1.1, an early public preview**. The interface defaults to Chinese and can switch to English. Resource management and deployment support have the limits described below.
+The current version is **0.2.0, an early open-source preview**. The interface defaults to Chinese and can switch to English. Resource management and deployment support have the limits described below.
 
-![CF Agent Manager account resource dashboard](docs/images/overview.png)
+![CF Nexarch account resource dashboard](docs/images/overview.png)
 
 ## Features and current limits
 
@@ -24,17 +24,19 @@ The current version is **0.1.1, an early public preview**. The interface default
 
 The public ZIP is not a complete deployment toolchain. Operations whose prerequisites are unmet are rejected. Development-mode Direct Upload support does not mean the packaged application has passed end-to-end deployment acceptance testing.
 
-![CF Agent Manager resource management screen](docs/images/resources.png)
-![CF Agent Manager deployment preparation screen](docs/images/deploy.png)
+![CF Nexarch resource management screen](docs/images/resources.png)
+![CF Nexarch deployment preparation screen](docs/images/deploy.png)
 
 ## Install and connect
 
-1. Download `CF-Agent-Manager-0.1.1-windows-x64.zip` from [Releases](https://github.com/rowanjove/cf-agent-manager/releases).
-2. Extract the entire ZIP and run `CF Agent Manager.exe`.
+1. Download `CF-Nexarch-0.2.0-windows-x64.zip` from [Releases](https://github.com/rowanjove/cf-nexarch/releases).
+2. Extract the entire ZIP and run `CF Nexarch.exe`.
 3. Configure a Cloudflare API Token in Settings, connect an account, and sync resources.
 4. Inspect cached results in the dashboard and resource views. Check the target and confirmation prompt before adoption or deployment-related operations.
 
 The current package is unsigned and may trigger Windows SmartScreen. Use only the assets published in this repository's Releases.
+
+Upgrading from CF Agent Manager does not require reconnecting your account. CF Nexarch retains the legacy application data directory, application ID, and Windows Credential Manager service identity.
 
 ## Credentials and permissions
 
@@ -47,8 +49,8 @@ Use a Token with the minimum permissions required for your operations. Never inc
 Requires Windows and Node.js **>=22.14**.
 
 ```powershell
-git clone https://github.com/rowanjove/cf-agent-manager.git
-cd cf-agent-manager
+git clone https://github.com/rowanjove/cf-nexarch.git
+cd cf-nexarch
 npm ci
 npm test
 npm run typecheck

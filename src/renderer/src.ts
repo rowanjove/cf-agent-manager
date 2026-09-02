@@ -1,6 +1,7 @@
 import "./style.css";
 import brandIconUrl from "./assets/app-icon.png";
 
+import { APP_NAME } from "../branding";
 import type { AccountRecord, ActivityRecord, ProjectRecord, ResourceKind, ResourceRecord, SyncResult } from "../core/domain";
 import type { InspectResult } from "../core/deployment/local-analyzer";
 import type { BuildResult } from "../core/deployment/build-engine";
@@ -62,7 +63,7 @@ function activeAccount(): AccountRecord | undefined { return accounts.find((acco
 function render(): void {
   app.innerHTML = `
     <aside class="sidebar">
-      <div class="brand"><img class="brand-mark" src="${brandIconUrl}" alt="" /><div><strong>CF Agent Manager</strong><span>${t("brand.subtitle")}</span></div></div>
+      <div class="brand"><img class="brand-mark" src="${brandIconUrl}" alt="" /><div><strong>${APP_NAME}</strong><span>${t("brand.subtitle")}</span></div></div>
       <nav>
         ${navButton("overview", t("nav.overview"))}
         ${navButton("projects", t("nav.projects"))}

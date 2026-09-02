@@ -1,18 +1,18 @@
 {
-  "name": "cf-agent-manager",
-  "productName": "CF Agent Manager",
+  "name": "cf-nexarch",
+  "productName": "CF Nexarch",
   "description": "Windows local control plane for Cloudflare resources, projects and deployments.",
   "author": "Ryan",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rowanjove/cf-agent-manager.git"
+    "url": "https://github.com/rowanjove/cf-nexarch.git"
   },
   "bugs": {
-    "url": "https://github.com/rowanjove/cf-agent-manager/issues"
+    "url": "https://github.com/rowanjove/cf-nexarch/issues"
   },
-  "homepage": "https://github.com/rowanjove/cf-agent-manager",
+  "homepage": "https://github.com/rowanjove/cf-nexarch",
   "type": "module",
   "main": "out/main/index.js",
   "engines": {

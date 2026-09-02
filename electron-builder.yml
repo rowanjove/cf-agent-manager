@@ -1,5 +1,5 @@
 appId: com.cfagent.manager
-productName: CF Agent Manager
+productName: CF Nexarch
 asar: true
 asarUnpack:
   - "**/keytar/**"
@@ -15,7 +15,7 @@ win:
   target:
     - target: zip
       arch: [x64]
-  artifactName: CF-Agent-Manager-${version}-windows-x64.zip
+  artifactName: CF-Nexarch-${version}-windows-x64.zip
   signExecutable: false
 directories:
   output: release
